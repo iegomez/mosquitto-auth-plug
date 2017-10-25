@@ -6,7 +6,7 @@ BE_CFLAGS =
 BE_LDFLAGS =
 BE_LDADD =
 BE_DEPS =
-OBJS = auth-plug.o base64.o pbkdf2-check.o log.o envs.o hash.o be-psk.o backends.o cache.o
+OBJS = auth-plug.o base64.o pbkdf2-check.o log.o envs.o hash.o be-psk.o backends.o cache.o parson.o
 
 BACKENDS =
 BACKENDSTR =
@@ -86,6 +86,14 @@ ifneq ($(BACKEND_JWT), no)
 	OBJS += be-jwt.o
 endif
 
+ifneq ($(BACKEND_GRPC), no)
+	BACKENDS+= -DBE_GRPC
+	BACKENDSTR += GRPC
+
+	BE_LDADD += -lcurl -ljson-c
+	OBJS += be-grpc.o
+endif
+
 ifneq ($(BACKEND_MONGO), no)
 	BACKENDS+= -DBE_MONGO
 	BACKENDSTR += MongoDB
@@ -162,6 +170,7 @@ be-postgres.o: be-postgres.c be-postgres.h Makefile
 cache.o: cache.c cache.h uthash.h Makefile
 be-http.o: be-http.c be-http.h Makefile backends.h
 be-jwt.o: be-jwt.c be-jwt.h Makefile backends.h
+be-grpc.o: be-grpc.c be-grpc.c Makefile backends.h parson.h parson.c
 be-mongo.o: be-mongo.c be-mongo.h Makefile
 be-files.o: be-files.c be-files.h Makefile
 

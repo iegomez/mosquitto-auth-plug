@@ -28,9 +28,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef BE_JWT
+#ifdef BE_GRPC
 #include "backends.h"
-#include "be-jwt.h"
+#include "be-grpc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +38,7 @@
 #include "log.h"
 #include "envs.h"
 #include <curl/curl.h>
+#include "parson.h"
 
 static int get_string_envs(CURL * curl, const char *required_env, char *querystring)
 {
@@ -95,9 +96,32 @@ static int get_string_envs(CURL * curl, const char *required_env, char *querystr
 	return (num);
 }
 
+
+#define URL_SZ 256
+#define BUF_SZ 10*1024
+
+long written = 0;
+
+static int receive( void* buffer, size_t length, size_t size, void* data ) {
+    size_t l = length * size;
+
+    if ( l > 0 ) {
+        if ( written + l >= BUF_SZ ) {
+            fprintf( stderr, "Buffer size exceeded.\n" );
+            return 0;
+        }
+        memcpy( &( (char*) data )[ written ], buffer, l );
+        written += l;
+    }
+
+    _log(LOG_DEBUG, "data: %s", data);
+
+    return l;
+}
+
 static int http_post(void *handle, char *uri, const char *clientid, const char *token, const char *topic, int acc, int method)
 {
-	struct jwt_backend *conf = (struct jwt_backend *)handle;
+	struct grpc_backend *conf = (struct grpc_backend *)handle;
 	CURL *curl;
 	struct curl_slist *headerlist = NULL;
 	int re;
@@ -105,6 +129,12 @@ static int http_post(void *handle, char *uri, const char *clientid, const char *
 	int ok = FALSE;
 	char *url;
 	char *data;
+
+
+  char rData[ BUF_SZ ];
+
+  memset( rData, 0, BUF_SZ );
+	written = 0;
 
 	if (token == NULL) {
 		return (FALSE);
@@ -190,7 +220,13 @@ static int http_post(void *handle, char *uri, const char *clientid, const char *
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
-	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+	if (strcmp(conf->verify_peer, "true") == 0) {
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+	} else {
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+	}
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, receive);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, rData);
 
 	re = curl_easy_perform(curl);
 	if (re == CURLE_OK) {
@@ -216,12 +252,21 @@ static int http_post(void *handle, char *uri, const char *clientid, const char *
 	free(token_header);
 	free(escaped_topic);
 	free(escaped_clientid);
+
+	//json_object* j = json_tokener_parse(rData);
+  //parse_json(j);
+  JSON_Value *jsonResponse = json_parse_string(rData);
+  JSON_Object *jsonObject = json_value_get_object(jsonResponse);
+  _log(LOG_DEBUG, "%d", json_object_get_boolean(jsonObject, "ok"));
+
+  json_value_free(jsonResponse);
+
 	return (ok);
 }
 
-void *be_jwt_init()
+void *be_grpc_init()
 {
-	struct jwt_backend *conf;
+	struct grpc_backend *conf;
 	char *ip;
 	char *getuser_uri;
 	char *superuser_uri;
@@ -247,7 +292,7 @@ void *be_jwt_init()
 		_fatal("Mandatory parameter `http_aclcheck_uri' missing");
 		return (NULL);
 	}
-	conf = (struct jwt_backend *)malloc(sizeof(struct jwt_backend));
+	conf = (struct grpc_backend *)malloc(sizeof(struct grpc_backend));
 	conf->ip = ip;
 	conf->port = p_stab("http_port") == NULL ? 80 : atoi(p_stab("http_port"));
 	if (p_stab("http_hostname") != NULL) {
@@ -270,7 +315,14 @@ void *be_jwt_init()
 		conf->with_tls = "false";
 	}
 
+	if (p_stab("http_verify_peer") != NULL) {
+		conf->verify_peer = p_stab("http_verify_peer");
+	} else {
+		conf->verify_peer = "false";
+	}
+
 	_log(LOG_DEBUG, "with_tls=%s", conf->with_tls);
+	_log(LOG_DEBUG, "verify_peer=%s", conf->verify_peer);
 	_log(LOG_DEBUG, "getuser_uri=%s", getuser_uri);
 	_log(LOG_DEBUG, "superuser_uri=%s", superuser_uri);
 	_log(LOG_DEBUG, "aclcheck_uri=%s", aclcheck_uri);
@@ -280,9 +332,9 @@ void *be_jwt_init()
 
 	return (conf);
 };
-void be_jwt_destroy(void *handle)
+void be_grpc_destroy(void *handle)
 {
-	struct jwt_backend *conf = (struct jwt_backend *)handle;
+	struct grpc_backend *conf = (struct grpc_backend *)handle;
 
 	if (conf) {
 		curl_global_cleanup();
@@ -290,9 +342,9 @@ void be_jwt_destroy(void *handle)
 	}
 };
 
-char *be_jwt_getuser(void *handle, const char *token, const char *pass, int *authenticated)
+char *be_grpc_getuser(void *handle, const char *token, const char *pass, int *authenticated)
 {
-	struct jwt_backend *conf = (struct jwt_backend *)handle;
+	struct grpc_backend *conf = (struct grpc_backend *)handle;
 	int re;
 	if (token == NULL) {
 		return NULL;
@@ -304,17 +356,17 @@ char *be_jwt_getuser(void *handle, const char *token, const char *pass, int *aut
 	return NULL;
 };
 
-int be_jwt_superuser(void *handle, const char *token)
+int be_grpc_superuser(void *handle, const char *token)
 {
-	struct jwt_backend *conf = (struct jwt_backend *)handle;
+	struct grpc_backend *conf = (struct grpc_backend *)handle;
 
 	return http_post(handle, conf->superuser_uri, NULL, token, NULL, -1, METHOD_SUPERUSER);
 };
 
-int be_jwt_aclcheck(void *handle, const char *clientid, const char *token, const char *topic, int acc)
+int be_grpc_aclcheck(void *handle, const char *clientid, const char *token, const char *topic, int acc)
 {
-	struct jwt_backend *conf = (struct jwt_backend *)handle;
+	struct grpc_backend *conf = (struct grpc_backend *)handle;
 	return http_post(conf, conf->aclcheck_uri, clientid, token, topic, acc, METHOD_ACLCHECK);
 };
 
-#endif /* BE_JWT */
+#endif /* BE_GRPC */

@@ -58,6 +58,7 @@
 #include "be-ldap.h"
 #include "be-http.h"
 #include "be-jwt.h"
+#include "be-grpc.h"
 #include "be-mongo.h"
 #include "be-files.h"
 
@@ -359,6 +360,25 @@ int mosquitto_auth_plugin_init(void **userdata, struct mosquitto_auth_opt *auth_
 			(*bep)->getuser =  be_jwt_getuser;
 			(*bep)->superuser =  be_jwt_superuser;
 			(*bep)->aclcheck =  be_jwt_aclcheck;
+			found = 1;
+			ud->fallback_be = ud->fallback_be == -1 ? nord : ud->fallback_be;
+			PSKSETUP;
+		}
+#endif
+
+#if BE_GRPC
+		if (!strcmp(q, "grpc")) {
+			*bep = (struct backend_p *)malloc(sizeof(struct backend_p));
+			memset(*bep, 0, sizeof(struct backend_p));
+			(*bep)->name = strdup("grpc");
+			(*bep)->conf = be_grpc_init();
+			if ((*bep)->conf == NULL) {
+				_fatal("%s init returns NULL", q);
+			}
+			(*bep)->kill =  be_grpc_destroy;
+			(*bep)->getuser =  be_grpc_getuser;
+			(*bep)->superuser =  be_grpc_superuser;
+			(*bep)->aclcheck =  be_grpc_aclcheck;
 			found = 1;
 			ud->fallback_be = ud->fallback_be == -1 ? nord : ud->fallback_be;
 			PSKSETUP;
