@@ -41,268 +41,6 @@
 #include "parson.h"
 #include "go-auth.h"
 
-/*
-static int get_string_envs(CURL * curl, const char *required_env, char *querystring)
-{
-	char *data = NULL;
-	char *escaped_key = NULL;
-	char *escaped_val = NULL;
-	char *env_string = NULL;
-
-	char *params_key[MAXPARAMSNUM];
-	char *env_names[MAXPARAMSNUM];
-	char *env_value[MAXPARAMSNUM];
-	int i, num = 0;
-
-	//_log(LOG_DEBUG, "sys_envs=%s", sys_envs);
-
-	env_string = (char *)malloc(strlen(required_env) + 20);
-	if (env_string == NULL) {
-		_fatal("ENOMEM");
-		return (-1);
-	}
-	sprintf(env_string, "%s", required_env);
-
-	//_log(LOG_DEBUG, "env_string=%s", env_string);
-
-	num = get_sys_envs(env_string, ",", "=", params_key, env_names, env_value);
-	//sprintf(querystring, "");
-	for (i = 0; i < num; i++) {
-		escaped_key = curl_easy_escape(curl, params_key[i], 0);
-		escaped_val = curl_easy_escape(curl, env_value[i], 0);
-
-		//_log(LOG_DEBUG, "key=%s", params_key[i]);
-		//_log(LOG_DEBUG, "escaped_key=%s", escaped_key);
-		//_log(LOG_DEBUG, "escaped_val=%s", escaped_envvalue);
-
-		data = (char *)malloc(strlen(escaped_key) + strlen(escaped_val) + 1);
-		if (data == NULL) {
-			_fatal("ENOMEM");
-			return (-1);
-		}
-		sprintf(data, "%s=%s&", escaped_key, escaped_val);
-		if (i == 0) {
-			sprintf(querystring, "%s", data);
-		} else {
-			strcat(querystring, data);
-		}
-	}
-
-	if (data)
-		free(data);
-	if (escaped_key)
-		free(escaped_key);
-	if (escaped_val)
-		free(escaped_val);
-	free(env_string);
-	return (num);
-}
-
-
-#define URL_SZ 256
-#define BUF_SZ 10*1024
-
-long written = 0;
-
-static int receive( void* buffer, size_t length, size_t size, void* data ) {
-    size_t l = length * size;
-
-    if ( l > 0 ) {
-        if ( written + l >= BUF_SZ ) {
-            fprintf( stderr, "Buffer size exceeded.\n" );
-            return 0;
-        }
-        memcpy( &( (char*) data )[ written ], buffer, l );
-        written += l;
-    }
-
-    _log(LOG_DEBUG, "data: %s", data);
-
-    return l;
-}
-*/
-
-/*
-static int http_post(void *handle, char *uri, const char *clientid, const char *token, const char *topic, int acc, int method)
-{
-	struct golang_backend *conf = (struct golang_backend *)handle;
-	CURL *curl;
-	struct curl_slist *headerlist = NULL;
-	int re;
-	int respCode = 0;
-	int ok = FALSE;
-	char *url;
-	char *data;
-
-
-  char rData[ BUF_SZ ];
-
-  memset( rData, 0, BUF_SZ );
-	written = 0;
-
-	if (token == NULL) {
-		return (FALSE);
-	}
-	clientid = (clientid && *clientid) ? clientid : "";
-	topic = (topic && *topic) ? topic : "";
-
-	if ((curl = curl_easy_init()) == NULL) {
-		_fatal("create curl_easy_handle fails");
-		return (FALSE);
-	}
-	if (conf->hostheader != NULL)
-		headerlist = curl_slist_append(headerlist, conf->hostheader);
-	headerlist = curl_slist_append(headerlist, "Expect:");
-
-	//_log(LOG_NOTICE, "u=%s p=%s t=%s acc=%d", username, password, topic, acc);
-
-	url = (char *)malloc(strlen(conf->ip) + strlen(uri) + 20);
-	if (url == NULL) {
-		_fatal("ENOMEM");
-		return (FALSE);
-	}
-	//enable the https
-		if (strcmp(conf->with_tls, "true") == 0) {
-		sprintf(url, "https://%s:%d%s", conf->ip, conf->port, uri);
-	} else {
-		sprintf(url, "http://%s:%d%s", conf->ip, conf->port, uri);
-	}
-
-	char *escaped_token = curl_easy_escape(curl, token, 0);
-	char *escaped_topic = curl_easy_escape(curl, topic, 0);
-	char *escaped_clientid = curl_easy_escape(curl, clientid, 0);
-
-	char string_acc[20];
-	snprintf(string_acc, 20, "%d", acc);
-
-	char *string_envs = (char *)malloc(MAXPARAMSLEN);
-	if (string_envs == NULL) {
-		_fatal("ENOMEM");
-		return (FALSE);
-	}
-	memset(string_envs, 0, MAXPARAMSLEN);
-
-	//get the sys_env from here
-		int env_num = 0;
-	if (method == METHOD_GETUSER && conf->getuser_envs != NULL) {
-		env_num = get_string_envs(curl, conf->getuser_envs, string_envs);
-	} else if (method == METHOD_SUPERUSER && conf->superuser_envs != NULL) {
-		env_num = get_string_envs(curl, conf->superuser_envs, string_envs);
-	} else if (method == METHOD_ACLCHECK && conf->aclcheck_envs != NULL) {
-		env_num = get_string_envs(curl, conf->aclcheck_envs, string_envs);
-	}
-	if (env_num == -1) {
-		return (FALSE);
-	}
-	//----over-- --
-
-		data = (char *)malloc(strlen(string_envs) + strlen(escaped_topic) + strlen(string_acc) + strlen(escaped_clientid) + 30);
-	if (data == NULL) {
-		_fatal("ENOMEM");
-		return (FALSE);
-	}
-	sprintf(data, "%stopic=%s&acc=%s&clientid=%s",
-		string_envs,
-		escaped_topic,
-		string_acc,
-		clientid);
-
-	_log(LOG_DEBUG, "url=%s", url);
-	_log(LOG_DEBUG, "data=%s", data);
-	//curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
-
-	char *token_header = (char *)malloc(strlen(escaped_token) + 22);
-	if (token_header == NULL) {
-		_fatal("ENOMEM");
-		return (FALSE);
-	}
-	sprintf(token_header, "Authorization: Bearer %s", escaped_token);
-	headerlist = curl_slist_append(headerlist, token_header);
-
-
-	if (method == METHOD_ACLCHECK) {
-
-		headerlist = curl_slist_append(headerlist, "Accept: application/json");
-		headerlist = curl_slist_append(headerlist, "Content-Type: application/json");
-		headerlist = curl_slist_append(headerlist, "charsets: utf-8");
-
-		JSON_Value *jsonRoot = json_value_init_object();
-  	JSON_Object *jsonObject = json_value_get_object(jsonRoot);
-  	char *serialized_string = NULL;
-	  json_object_set_string(jsonObject, "topic", escaped_topic);
-	  json_object_set_string(jsonObject, "clientid", clientid);
-	  json_object_set_number(jsonObject, "acc", acc);
-	  serialized_string = json_serialize_to_string(jsonRoot);
-	  _log(LOG_NOTICE, "json: %s", serialized_string);
-
-
-	  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, serialized_string);
-	  //curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, -1L);
-	  
-	  json_free_serialized_string(serialized_string);
-  	json_value_free(jsonRoot);
-	} else {
-		//curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
-		_log(LOG_NOTICE, "sending without data");
-	}
-
-	curl_easy_setopt(curl, CURLOPT_URL, url);
-	curl_easy_setopt(curl, CURLOPT_POST, 1L);
-	
-	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
-	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5);
-	
-
-	if (strcmp(conf->verify_peer, "true") == 0) {
-		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
-	} else {
-		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-	}
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, receive);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, rData);
-
-	_log(LOG_NOTICE, "using token_header: %s", token_header);
-
-	re = curl_easy_perform(curl);
-	if (re == CURLE_OK) {
-
-		JSON_Value *jsonResponse = json_parse_string(rData);
-  	JSON_Object *jsonObject = json_value_get_object(jsonResponse);
-  	int respOk = json_object_get_boolean(jsonObject, "ok");
-  	const char* respErr = json_object_get_string(jsonObject, "error");
-
-  	_log(LOG_NOTICE, "got these values:  ok: %d  error: %s", respOk, respErr);
-
-		re = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &respCode);
-		if (re == CURLE_OK && respCode >= 200 && respCode < 300 && respOk) {
-			ok = TRUE;
-		} else if (re == CURLE_OK && respCode >= 500) {
-			ok = BACKEND_ERROR;
-		} else {
-			_log(LOG_NOTICE, "http auth fail re=%d respCode=%d error=%s", re, respCode, respErr);
-		}
-		json_value_free(jsonResponse);
-	} else {
-		_log(LOG_NOTICE, "http req fail url=%s re=%s", url, curl_easy_strerror(re));
-		ok = BACKEND_ERROR;
-	}
-
-	curl_easy_cleanup(curl);
-	curl_slist_free_all(headerlist);
-	free(url);
-	free(data);
-	free(string_envs);
-	free(escaped_token);
-	free(token_header);
-	free(escaped_topic);
-	free(escaped_clientid);
-
-	return (ok);
-}
-
-*/
-
 void *be_golang_init()
 {
 	struct golang_backend *conf;
@@ -388,10 +126,15 @@ char *be_golang_getuser(void *handle, const char *token, const char *pass, int *
 	}
 
 	struct golang_backend *conf = (struct golang_backend *)handle;
+
+	GoString goHost = {conf->ip, strlen(conf->ip)};
+	GoInt32 goPort = conf->port;
 	GoString goUri = {conf->getuser_uri, strlen(conf->getuser_uri)};
 	GoString goToken = {token, strlen(token)};
+	GoString goWithTLS = {conf->with_tls, strlen(conf->with_tls)};
+	GoString goVerifyPeer = {conf->verify_peer, strlen(conf->verify_peer)};
 
-	if(User(goUri, goToken)){
+	if(User(goHost, goUri, goToken, goWithTLS, goVerifyPeer, goPort)){
 		*authenticated = 1;
 	}
 
@@ -401,20 +144,32 @@ char *be_golang_getuser(void *handle, const char *token, const char *pass, int *
 int be_golang_superuser(void *handle, const char *token)
 {
 	struct golang_backend *conf = (struct golang_backend *)handle;
+
+	GoString goHost = {conf->ip, strlen(conf->ip)};
+	GoInt32 goPort = conf->port;
 	GoString goUri = {conf->superuser_uri, strlen(conf->superuser_uri)};
 	GoString goToken = {token, strlen(token)};
+	GoString goWithTLS = {conf->with_tls, strlen(conf->with_tls)};
+	GoString goVerifyPeer = {conf->verify_peer, strlen(conf->verify_peer)};
 
-	return Superuser(goUri, goToken);
+	return Superuser(goHost, goUri, goToken, goWithTLS, goVerifyPeer, goPort);
 };
 
 int be_golang_aclcheck(void *handle, const char *clientid, const char *token, const char *topic, int acc)
 {
 	struct golang_backend *conf = (struct golang_backend *)handle;
+
+	GoString goHost = {conf->ip, strlen(conf->ip)};
+	GoInt32 goPort = conf->port;
 	GoString goUri = {conf->aclcheck_uri, strlen(conf->superuser_uri)};
 	GoString goToken = {token, strlen(token)};
 	GoString goTopic = {topic, strlen(topic)};
+	GoString goWithTLS = {conf->with_tls, strlen(conf->with_tls)};
+	GoString goVerifyPeer = {conf->verify_peer, strlen(conf->verify_peer)};
+	GoString goClientID = {clientid, strlen(clientid)};
+	GoInt32 goAcc = acc;
 
-	return Acl(goUri, goToken, goTopic);
+	return Acl(goHost, goUri, goToken, goWithTLS, goVerifyPeer, goTopic, goClientID, goAcc, goPort);
 };
 
 #endif /* BE_GOLANG */

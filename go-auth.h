@@ -53,11 +53,11 @@ extern "C" {
 #endif
 
 
-extern GoUint8 User(GoString p0, GoString p1);
+extern GoUint8 User(GoString p0, GoString p1, GoString p2, GoString p3, GoString p4, GoInt32 p5);
 
-extern GoUint8 Superuser(GoString p0, GoString p1);
+extern GoUint8 Superuser(GoString p0, GoString p1, GoString p2, GoString p3, GoString p4, GoInt32 p5);
 
-extern GoUint8 Acl(GoString p0, GoString p1, GoString p2);
+extern GoUint8 Acl(GoString p0, GoString p1, GoString p2, GoString p3, GoString p4, GoString p5, GoString p6, GoInt32 p7, GoInt32 p8);
 
 #ifdef __cplusplus
 }
