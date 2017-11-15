@@ -28,9 +28,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef BE_GRPC
+#ifdef BE_LORASERVER
 #include "backends.h"
-#include "be-grpc.h"
+#include "be-loraserver.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -121,7 +121,7 @@ static int receive( void* buffer, size_t length, size_t size, void* data ) {
 
 static int http_post(void *handle, char *uri, const char *clientid, const char *token, const char *topic, int acc, int method)
 {
-	struct grpc_backend *conf = (struct grpc_backend *)handle;
+	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
 	CURL *curl;
 	struct curl_slist *headerlist = NULL;
 	int re;
@@ -215,11 +215,42 @@ static int http_post(void *handle, char *uri, const char *clientid, const char *
 	sprintf(token_header, "Authorization: Bearer %s", escaped_token);
 	headerlist = curl_slist_append(headerlist, token_header);
 
+
+	if (method == METHOD_ACLCHECK) {
+
+		headerlist = curl_slist_append(headerlist, "Accept: application/json");
+		headerlist = curl_slist_append(headerlist, "Content-Type: application/json");
+		headerlist = curl_slist_append(headerlist, "charsets: utf-8");
+
+		JSON_Value *jsonRoot = json_value_init_object();
+  	JSON_Object *jsonObject = json_value_get_object(jsonRoot);
+  	char *serialized_string = NULL;
+	  json_object_set_string(jsonObject, "topic", escaped_topic);
+	  json_object_set_string(jsonObject, "clientid", clientid);
+	  json_object_set_number(jsonObject, "acc", acc);
+	  serialized_string = json_serialize_to_string(jsonRoot);
+	  _log(LOG_NOTICE, "json: %s", serialized_string);
+
+
+	  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, serialized_string);
+	  //curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, -1L);
+	  
+	  json_free_serialized_string(serialized_string);
+  	json_value_free(jsonRoot);
+	} else {
+		char* empty_data = 
+		//curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+		_log(LOG_NOTICE, "sending without data");
+	}
+
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_POST, 1L);
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+	
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5);
+	
+
 	if (strcmp(conf->verify_peer, "true") == 0) {
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	} else {
@@ -228,18 +259,29 @@ static int http_post(void *handle, char *uri, const char *clientid, const char *
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, receive);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, rData);
 
+	_log(LOG_NOTICE, "using token_header: %s", token_header);
+
 	re = curl_easy_perform(curl);
 	if (re == CURLE_OK) {
+
+		JSON_Value *jsonResponse = json_parse_string(rData);
+  	JSON_Object *jsonObject = json_value_get_object(jsonResponse);
+  	int respOk = json_object_get_boolean(jsonObject, "ok");
+  	const char* respErr = json_object_get_string(jsonObject, "error");
+
+  	_log(LOG_NOTICE, "got these values:  ok: %d  error: %s", respOk, respErr);
+
 		re = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &respCode);
-		if (re == CURLE_OK && respCode >= 200 && respCode < 300) {
+		if (re == CURLE_OK && respCode >= 200 && respCode < 300 && respOk) {
 			ok = TRUE;
 		} else if (re == CURLE_OK && respCode >= 500) {
 			ok = BACKEND_ERROR;
 		} else {
-			//_log(LOG_NOTICE, "http auth fail re=%d respCode=%d", re, respCode);
+			_log(LOG_NOTICE, "http auth fail re=%d respCode=%d error=%s", re, respCode, respErr);
 		}
+		json_value_free(jsonResponse);
 	} else {
-		_log(LOG_DEBUG, "http req fail url=%s re=%s", url, curl_easy_strerror(re));
+		_log(LOG_NOTICE, "http req fail url=%s re=%s", url, curl_easy_strerror(re));
 		ok = BACKEND_ERROR;
 	}
 
@@ -253,20 +295,12 @@ static int http_post(void *handle, char *uri, const char *clientid, const char *
 	free(escaped_topic);
 	free(escaped_clientid);
 
-	//json_object* j = json_tokener_parse(rData);
-  //parse_json(j);
-  JSON_Value *jsonResponse = json_parse_string(rData);
-  JSON_Object *jsonObject = json_value_get_object(jsonResponse);
-  _log(LOG_DEBUG, "%d", json_object_get_boolean(jsonObject, "ok"));
-
-  json_value_free(jsonResponse);
-
 	return (ok);
 }
 
-void *be_grpc_init()
+void *be_loraserver_init()
 {
-	struct grpc_backend *conf;
+	struct loraserver_backend *conf;
 	char *ip;
 	char *getuser_uri;
 	char *superuser_uri;
@@ -292,7 +326,7 @@ void *be_grpc_init()
 		_fatal("Mandatory parameter `http_aclcheck_uri' missing");
 		return (NULL);
 	}
-	conf = (struct grpc_backend *)malloc(sizeof(struct grpc_backend));
+	conf = (struct loraserver_backend *)malloc(sizeof(struct loraserver_backend));
 	conf->ip = ip;
 	conf->port = p_stab("http_port") == NULL ? 80 : atoi(p_stab("http_port"));
 	if (p_stab("http_hostname") != NULL) {
@@ -332,9 +366,9 @@ void *be_grpc_init()
 
 	return (conf);
 };
-void be_grpc_destroy(void *handle)
+void be_loraserver_destroy(void *handle)
 {
-	struct grpc_backend *conf = (struct grpc_backend *)handle;
+	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
 
 	if (conf) {
 		curl_global_cleanup();
@@ -342,9 +376,9 @@ void be_grpc_destroy(void *handle)
 	}
 };
 
-char *be_grpc_getuser(void *handle, const char *token, const char *pass, int *authenticated)
+char *be_loraserver_getuser(void *handle, const char *token, const char *pass, int *authenticated)
 {
-	struct grpc_backend *conf = (struct grpc_backend *)handle;
+	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
 	int re;
 	if (token == NULL) {
 		return NULL;
@@ -356,17 +390,17 @@ char *be_grpc_getuser(void *handle, const char *token, const char *pass, int *au
 	return NULL;
 };
 
-int be_grpc_superuser(void *handle, const char *token)
+int be_loraserver_superuser(void *handle, const char *token)
 {
-	struct grpc_backend *conf = (struct grpc_backend *)handle;
+	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
 
 	return http_post(handle, conf->superuser_uri, NULL, token, NULL, -1, METHOD_SUPERUSER);
 };
 
-int be_grpc_aclcheck(void *handle, const char *clientid, const char *token, const char *topic, int acc)
+int be_loraserver_aclcheck(void *handle, const char *clientid, const char *token, const char *topic, int acc)
 {
-	struct grpc_backend *conf = (struct grpc_backend *)handle;
+	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
 	return http_post(conf, conf->aclcheck_uri, clientid, token, topic, acc, METHOD_ACLCHECK);
 };
 
-#endif /* BE_GRPC */
+#endif /* BE_LORASERVER */

@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifdef BE_GRPC
+#ifdef BE_LORASERVER
 
 #define MAXPARAMSLEN  1024
 #define METHOD_GETUSER   1
@@ -35,7 +35,7 @@
 #define URL_SZ 256
 #define BUF_SZ 10*1024
 
-struct grpc_backend {
+struct loraserver_backend {
 	char *ip;
 	int port;
 	char *hostheader;
@@ -49,9 +49,9 @@ struct grpc_backend {
 	char *verify_peer;
 };
 
-void *be_grpc_init();
-void be_grpc_destroy(void *conf);
-char *be_grpc_getuser(void *conf, const char *token, const char *password, int *authenticated);
-int be_grpc_superuser(void *conf, const char *token);
-int be_grpc_aclcheck(void *conf, const char *clientid, const char *token, const char *topic, int acc);
-#endif /* BE_GRPC */
+void *be_loraserver_init();
+void be_loraserver_destroy(void *conf);
+char *be_loraserver_getuser(void *conf, const char *token, const char *password, int *authenticated);
+int be_loraserver_superuser(void *conf, const char *token);
+int be_loraserver_aclcheck(void *conf, const char *clientid, const char *token, const char *topic, int acc);
+#endif /* BE_LORASERVER */

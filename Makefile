@@ -86,12 +86,12 @@ ifneq ($(BACKEND_JWT), no)
 	OBJS += be-jwt.o
 endif
 
-ifneq ($(BACKEND_GRPC), no)
-	BACKENDS+= -DBE_GRPC
-	BACKENDSTR += GRPC
+ifneq ($(BACKEND_LORASERVER), no)
+	BACKENDS+= -DBE_LORASERVER
+	BACKENDSTR += LORASERVER
 
 	BE_LDADD += -lcurl -ljson-c
-	OBJS += be-grpc.o
+	OBJS += be-loraserver.o
 endif
 
 ifneq ($(BACKEND_MONGO), no)
@@ -170,7 +170,7 @@ be-postgres.o: be-postgres.c be-postgres.h Makefile
 cache.o: cache.c cache.h uthash.h Makefile
 be-http.o: be-http.c be-http.h Makefile backends.h
 be-jwt.o: be-jwt.c be-jwt.h Makefile backends.h
-be-grpc.o: be-grpc.c be-grpc.c Makefile backends.h parson.h parson.c
+be-loraserver.o: be-loraserver.c be-loraserver.h Makefile backends.h parson.h parson.c
 be-mongo.o: be-mongo.c be-mongo.h Makefile
 be-files.o: be-files.c be-files.h Makefile
 
