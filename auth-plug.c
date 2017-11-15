@@ -58,7 +58,7 @@
 #include "be-ldap.h"
 #include "be-http.h"
 #include "be-jwt.h"
-#include "be-loraserver.h"
+#include "be-golang.h"
 #include "be-mongo.h"
 #include "be-files.h"
 
@@ -366,19 +366,19 @@ int mosquitto_auth_plugin_init(void **userdata, struct mosquitto_auth_opt *auth_
 		}
 #endif
 
-#if BE_LORASERVER
-		if (!strcmp(q, "loraserver")) {
+#if BE_GOLANG
+		if (!strcmp(q, "golang")) {
 			*bep = (struct backend_p *)malloc(sizeof(struct backend_p));
 			memset(*bep, 0, sizeof(struct backend_p));
-			(*bep)->name = strdup("loraserver");
-			(*bep)->conf = be_loraserver_init();
+			(*bep)->name = strdup("golang");
+			(*bep)->conf = be_golang_init();
 			if ((*bep)->conf == NULL) {
 				_fatal("%s init returns NULL", q);
 			}
-			(*bep)->kill =  be_loraserver_destroy;
-			(*bep)->getuser =  be_loraserver_getuser;
-			(*bep)->superuser =  be_loraserver_superuser;
-			(*bep)->aclcheck =  be_loraserver_aclcheck;
+			(*bep)->kill =  be_golang_destroy;
+			(*bep)->getuser =  be_golang_getuser;
+			(*bep)->superuser =  be_golang_superuser;
+			(*bep)->aclcheck =  be_golang_aclcheck;
 			found = 1;
 			ud->fallback_be = ud->fallback_be == -1 ? nord : ud->fallback_be;
 			PSKSETUP;

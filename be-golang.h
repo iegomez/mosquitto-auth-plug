@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifdef BE_LORASERVER
+#ifdef BE_GOLANG
 
 #define MAXPARAMSLEN  1024
 #define METHOD_GETUSER   1
@@ -35,7 +35,7 @@
 #define URL_SZ 256
 #define BUF_SZ 10*1024
 
-struct loraserver_backend {
+struct golang_backend {
 	char *ip;
 	int port;
 	char *hostheader;
@@ -49,9 +49,9 @@ struct loraserver_backend {
 	char *verify_peer;
 };
 
-void *be_loraserver_init();
-void be_loraserver_destroy(void *conf);
-char *be_loraserver_getuser(void *conf, const char *token, const char *password, int *authenticated);
-int be_loraserver_superuser(void *conf, const char *token);
-int be_loraserver_aclcheck(void *conf, const char *clientid, const char *token, const char *topic, int acc);
-#endif /* BE_LORASERVER */
+void *be_golang_init();
+void be_golang_destroy(void *conf);
+char *be_golang_getuser(void *conf, const char *token, const char *password, int *authenticated);
+int be_golang_superuser(void *conf, const char *token);
+int be_golang_aclcheck(void *conf, const char *clientid, const char *token, const char *topic, int acc);
+#endif /* BE_GOLANG */

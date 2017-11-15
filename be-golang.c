@@ -28,9 +28,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef BE_LORASERVER
+#ifdef BE_GOLANG
 #include "backends.h"
-#include "be-loraserver.h"
+#include "be-golang.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -125,7 +125,7 @@ static int receive( void* buffer, size_t length, size_t size, void* data ) {
 /*
 static int http_post(void *handle, char *uri, const char *clientid, const char *token, const char *topic, int acc, int method)
 {
-	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
+	struct golang_backend *conf = (struct golang_backend *)handle;
 	CURL *curl;
 	struct curl_slist *headerlist = NULL;
 	int re;
@@ -303,9 +303,9 @@ static int http_post(void *handle, char *uri, const char *clientid, const char *
 
 */
 
-void *be_loraserver_init()
+void *be_golang_init()
 {
-	struct loraserver_backend *conf;
+	struct golang_backend *conf;
 	char *ip;
 	char *getuser_uri;
 	char *superuser_uri;
@@ -331,7 +331,7 @@ void *be_loraserver_init()
 		_fatal("Mandatory parameter `http_aclcheck_uri' missing");
 		return (NULL);
 	}
-	conf = (struct loraserver_backend *)malloc(sizeof(struct loraserver_backend));
+	conf = (struct golang_backend *)malloc(sizeof(struct golang_backend));
 	conf->ip = ip;
 	conf->port = p_stab("http_port") == NULL ? 80 : atoi(p_stab("http_port"));
 	if (p_stab("http_hostname") != NULL) {
@@ -371,9 +371,9 @@ void *be_loraserver_init()
 
 	return (conf);
 };
-void be_loraserver_destroy(void *handle)
+void be_golang_destroy(void *handle)
 {
-	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
+	struct golang_backend *conf = (struct golang_backend *)handle;
 
 	if (conf) {
 		curl_global_cleanup();
@@ -381,13 +381,13 @@ void be_loraserver_destroy(void *handle)
 	}
 };
 
-char *be_loraserver_getuser(void *handle, const char *token, const char *pass, int *authenticated)
+char *be_golang_getuser(void *handle, const char *token, const char *pass, int *authenticated)
 {
 	if (token == NULL) {
 		return NULL;
 	}
 
-	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
+	struct golang_backend *conf = (struct golang_backend *)handle;
 	GoString goUri = {conf->getuser_uri, strlen(conf->getuser_uri)};
 	GoString goToken = {token, strlen(token)};
 
@@ -398,18 +398,18 @@ char *be_loraserver_getuser(void *handle, const char *token, const char *pass, i
 	return NULL;
 };
 
-int be_loraserver_superuser(void *handle, const char *token)
+int be_golang_superuser(void *handle, const char *token)
 {
-	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
+	struct golang_backend *conf = (struct golang_backend *)handle;
 	GoString goUri = {conf->superuser_uri, strlen(conf->superuser_uri)};
 	GoString goToken = {token, strlen(token)};
 
 	return Superuser(goUri, goToken);
 };
 
-int be_loraserver_aclcheck(void *handle, const char *clientid, const char *token, const char *topic, int acc)
+int be_golang_aclcheck(void *handle, const char *clientid, const char *token, const char *topic, int acc)
 {
-	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
+	struct golang_backend *conf = (struct golang_backend *)handle;
 	GoString goUri = {conf->aclcheck_uri, strlen(conf->superuser_uri)};
 	GoString goToken = {token, strlen(token)};
 	GoString goTopic = {topic, strlen(topic)};
@@ -417,4 +417,4 @@ int be_loraserver_aclcheck(void *handle, const char *clientid, const char *token
 	return Acl(goUri, goToken, goTopic);
 };
 
-#endif /* BE_LORASERVER */
+#endif /* BE_GOLANG */

@@ -12,6 +12,7 @@ BACKENDS =
 BACKENDSTR =
 GOOS ?= linux
 GOARCH ?= amd64
+GO_BUILD =
 
 ifneq ($(BACKEND_CDB),no)
 	BACKENDS += -DBE_CDB
@@ -88,12 +89,13 @@ ifneq ($(BACKEND_JWT), no)
 	OBJS += be-jwt.o
 endif
 
-ifneq ($(BACKEND_LORASERVER), no)
-	BACKENDS+= -DBE_LORASERVER
-	BACKENDSTR += LORASERVER
+ifneq ($(BACKEND_GOLANG), no)
+	BACKENDS+= -DBE_GOLANG
+	BACKENDSTR += GOLANG
+	GO_BUILD = go-build
 
 	BE_LDADD += -lcurl -ljson-c
-	OBJS += be-loraserver.o go-auth.o
+	OBJS += be-golang.o go-auth.o
 endif
 
 ifneq ($(BACKEND_MONGO), no)
@@ -136,7 +138,7 @@ LDFLAGS += $(BE_LDFLAGS) -L$(MOSQUITTO_SRC)/lib/
 # LDFLAGS += -export-dynamic
 LDADD = $(BE_LDADD) $(OSSLIBS) -lmosquitto
 
-all: printconfig auth-plug.so np
+all: $(GO_BUILD) printconfig auth-plug.so np
 
 printconfig:
 	@echo "Selected backends:         $(BACKENDSTR)"
@@ -172,7 +174,7 @@ be-postgres.o: be-postgres.c be-postgres.h Makefile
 cache.o: cache.c cache.h uthash.h Makefile
 be-http.o: be-http.c be-http.h Makefile backends.h
 be-jwt.o: be-jwt.c be-jwt.h Makefile backends.h
-be-loraserver.o: be-loraserver.c be-loraserver.h Makefile backends.h parson.h parson.c go-auth.h
+be-golang.o: be-golang.c be-golang.h Makefile backends.h parson.h parson.c go-auth.h
 be-mongo.o: be-mongo.c be-mongo.h Makefile
 be-files.o: be-files.c be-files.h Makefile
 
