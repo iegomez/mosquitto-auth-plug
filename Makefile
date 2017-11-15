@@ -10,6 +10,8 @@ OBJS = auth-plug.o base64.o pbkdf2-check.o log.o envs.o hash.o be-psk.o backends
 
 BACKENDS =
 BACKENDSTR =
+GOOS ?= linux
+GOARCH ?= amd64
 
 ifneq ($(BACKEND_CDB),no)
 	BACKENDS += -DBE_CDB
@@ -91,7 +93,7 @@ ifneq ($(BACKEND_LORASERVER), no)
 	BACKENDSTR += LORASERVER
 
 	BE_LDADD += -lcurl -ljson-c
-	OBJS += be-loraserver.o
+	OBJS += be-loraserver.o go-auth.o
 endif
 
 ifneq ($(BACKEND_MONGO), no)
@@ -150,7 +152,7 @@ printconfig:
 
 
 
-auth-plug.so : $(OBJS) $(BE_DEPS)
+auth-plug.so : $(GO_BUILD) $(OBJS) $(BE_DEPS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -fPIC -shared -o $@ $(OBJS) $(BE_DEPS) $(LDADD)
 
 be-redis.o: be-redis.c be-redis.h log.h hash.h envs.h Makefile
@@ -170,9 +172,12 @@ be-postgres.o: be-postgres.c be-postgres.h Makefile
 cache.o: cache.c cache.h uthash.h Makefile
 be-http.o: be-http.c be-http.h Makefile backends.h
 be-jwt.o: be-jwt.c be-jwt.h Makefile backends.h
-be-loraserver.o: be-loraserver.c be-loraserver.h Makefile backends.h parson.h parson.c
+be-loraserver.o: be-loraserver.c be-loraserver.h Makefile backends.h parson.h parson.c go-auth.h
 be-mongo.o: be-mongo.c be-mongo.h Makefile
 be-files.o: be-files.c be-files.h Makefile
+
+go-build:
+	go build -o go-auth.o -buildmode=c-archive go-auth.go
 
 np: np.c base64.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(OSSLIBS)

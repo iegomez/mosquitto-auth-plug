@@ -39,7 +39,9 @@
 #include "envs.h"
 #include <curl/curl.h>
 #include "parson.h"
+#include "go-auth.h"
 
+/*
 static int get_string_envs(CURL * curl, const char *required_env, char *querystring)
 {
 	char *data = NULL;
@@ -118,7 +120,9 @@ static int receive( void* buffer, size_t length, size_t size, void* data ) {
 
     return l;
 }
+*/
 
+/*
 static int http_post(void *handle, char *uri, const char *clientid, const char *token, const char *topic, int acc, int method)
 {
 	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
@@ -238,7 +242,6 @@ static int http_post(void *handle, char *uri, const char *clientid, const char *
 	  json_free_serialized_string(serialized_string);
   	json_value_free(jsonRoot);
 	} else {
-		char* empty_data = 
 		//curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
 		_log(LOG_NOTICE, "sending without data");
 	}
@@ -297,6 +300,8 @@ static int http_post(void *handle, char *uri, const char *clientid, const char *
 
 	return (ok);
 }
+
+*/
 
 void *be_loraserver_init()
 {
@@ -378,29 +383,38 @@ void be_loraserver_destroy(void *handle)
 
 char *be_loraserver_getuser(void *handle, const char *token, const char *pass, int *authenticated)
 {
-	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
-	int re;
 	if (token == NULL) {
 		return NULL;
 	}
-	re = http_post(handle, conf->getuser_uri, NULL, token, NULL, -1, METHOD_GETUSER);
-	if (re == 1) {
+
+	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
+	GoString goUri = {conf->getuser_uri, strlen(conf->getuser_uri)};
+	GoString goToken = {token, strlen(token)};
+
+	if(User(goUri, goToken)){
 		*authenticated = 1;
 	}
+
 	return NULL;
 };
 
 int be_loraserver_superuser(void *handle, const char *token)
 {
 	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
+	GoString goUri = {conf->superuser_uri, strlen(conf->superuser_uri)};
+	GoString goToken = {token, strlen(token)};
 
-	return http_post(handle, conf->superuser_uri, NULL, token, NULL, -1, METHOD_SUPERUSER);
+	return Superuser(goUri, goToken);
 };
 
 int be_loraserver_aclcheck(void *handle, const char *clientid, const char *token, const char *topic, int acc)
 {
 	struct loraserver_backend *conf = (struct loraserver_backend *)handle;
-	return http_post(conf, conf->aclcheck_uri, clientid, token, topic, acc, METHOD_ACLCHECK);
+	GoString goUri = {conf->aclcheck_uri, strlen(conf->superuser_uri)};
+	GoString goToken = {token, strlen(token)};
+	GoString goTopic = {topic, strlen(topic)};
+
+	return Acl(goUri, goToken, goTopic);
 };
 
 #endif /* BE_LORASERVER */
