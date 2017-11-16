@@ -1,7 +1,17 @@
 # mosquitto-auth-plug
 
+#### Important
+
+This fork adds the following backend:
+
+* Go JWT json (golang)
+
+Everything, including building instructions, remains the same. The plugin uses cgo to allow the backend to call auth functions written in Go in a separate go-auth.go file.
+
+#### Original
+
 This is a plugin to authenticate and authorize [Mosquitto] users from one
-of several distinct back-ends:
+of several distinct back-ends from the original plugin at https://github.com/jpmens/mosquitto-auth-plug:
 
 * MySQL
 * PostgreSQL
@@ -110,6 +120,16 @@ Options therein with a leading ```auth_opt_``` are handed to the plugin. The fol
 | log_quiet      | false      |             | don't log DEBUG messages |
 
 Individual back-ends have their options described in the sections below.
+
+### Go JWT json (addition)
+
+The `golang` backend allows to use a json API with JWT tokens for authentication. Options are the same as the http and JWT backends, with one addition:
+
+| Option           | default    |  Mandatory  | Meaning               |
+| --------------   | ---------- | :---------: | --------------------- |
+| http_verify_peer |   false    |     N       | set verify peer for tls post request |
+
+This option allows to skip peer verification for testing purposes.
 
 ### MySQL
 

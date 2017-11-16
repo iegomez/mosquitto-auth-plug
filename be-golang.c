@@ -161,7 +161,7 @@ int be_golang_aclcheck(void *handle, const char *clientid, const char *token, co
 
 	GoString goHost = {conf->ip, strlen(conf->ip)};
 	GoInt32 goPort = conf->port;
-	GoString goUri = {conf->aclcheck_uri, strlen(conf->superuser_uri)};
+	GoString goUri = {conf->aclcheck_uri, strlen(conf->aclcheck_uri)};
 	GoString goToken = {token, strlen(token)};
 	GoString goTopic = {topic, strlen(topic)};
 	GoString goWithTLS = {conf->with_tls, strlen(conf->with_tls)};
