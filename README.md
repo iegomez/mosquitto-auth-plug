@@ -1,12 +1,14 @@
 # mosquitto-auth-plug
 
-#### Important
+#### Important addition
 
 This fork adds the following backend:
 
 * Go JWT json (golang)
 
-Everything, including building instructions, remains the same. The plugin uses cgo to allow the backend to call auth functions written in Go in a separate go-auth.go file.
+This version depends on a Go environment and cgo to work. Everything else, including building instructions, remains the same. The plugin uses cgo to allow the backend to call auth functions written in Go in a separate go-auth.go file.
+
+Has been tested with Go 1.9.2 and mosquitto 1.4.14.
 
 #### Original
 
