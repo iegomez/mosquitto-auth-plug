@@ -94,7 +94,7 @@ ifneq ($(BACKEND_GOLANG), no)
 	BACKENDSTR += GOLANG
 	GO_BUILD = go-build
 
-	BE_LDADD += -lcurl -ljson-c
+	BE_LDADD += -lcurl
 	OBJS += be-golang.o go-auth.o
 endif
 
